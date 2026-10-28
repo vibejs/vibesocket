@@ -84,6 +84,8 @@ export function createDurableSocket<C extends SocketContract, P extends Principa
             frame = JSON.parse(data) as Record<string, unknown>;
           frame.receipt = id;
           const encoded = JSON.stringify(frame);
+          if (bytes(encoded) > (options.maxMessageBytes ?? 65536))
+            throw new SocketError('INVALID_PAYLOAD');
           if ([...credit.values()].reduce((a, b) => a + b, 0) + bytes(encoded) > max)
             throw new SocketError('SLOW_CONSUMER');
           credit.set(id, bytes(encoded));

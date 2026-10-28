@@ -151,7 +151,11 @@ export function createSocketServer<C extends SocketContract, P extends Principal
     } catch (error) {
       close(
         s.connection.id,
-        error instanceof SocketError && error.code === 'SLOW_CONSUMER' ? 4008 : 1011,
+        error instanceof SocketError && error.code === 'SLOW_CONSUMER'
+          ? 4008
+          : error instanceof SocketError && error.code === 'INVALID_PAYLOAD'
+            ? 1009
+            : 1011,
         'Write failed',
       );
       return false;

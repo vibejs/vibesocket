@@ -16,6 +16,7 @@ const stringSchema = {
 const contract = defineSocketContract({
   client: { say: stringSchema },
   server: { said: stringSchema },
+  requests: { large: { input: stringSchema, output: stringSchema } },
 });
 export class Room {
   adapter: ReturnType<typeof createDurableSocket<typeof contract, { id: string; org: string }>>;
@@ -36,6 +37,9 @@ export class Room {
     adapter.core.on('say', async (payload) => {
       await adapter.core.publish('org:a', 'said', payload);
     });
+    adapter.core.handle('large', () =>
+      'x'.repeat(65536 - JSON.stringify({ v: 1, type: 'result', id: 'large', payload: '' }).length),
+    );
     return adapter;
   }
   fetch(req: Request) {

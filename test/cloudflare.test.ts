@@ -92,7 +92,11 @@ it('runs real Worker upgrades, authorization, broadcast, receipts and attachment
     const pong = wait((f) => f.type === 'pong');
     a.send('{"v":1,"type":"ping"}');
     await pong;
-    a.close(1000);
+    const overflow = new Promise<number>((resolve) =>
+      a.addEventListener('close', (event) => resolve(event.code)),
+    );
+    a.send('{"v":1,"type":"request","id":"large","event":"large","payload":"boundary"}');
+    expect(await overflow).toBe(1009);
     b.close(1000);
   } finally {
     await mf.dispose();
