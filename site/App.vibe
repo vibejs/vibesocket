@@ -1,0 +1,20 @@
+<script setup lang="ts">
+import { ref } from '@usevibejs/ui';
+import { useSocketEvent, useSocketRoom, useSocketStatus } from '../src/client.ts';
+import { socket } from './main.ts';
+const text = ref('');
+const messages = ref<{ id: string; text: string; user: string; at: string }[]>([]);
+const { status } = useSocketStatus(socket);
+useSocketRoom(socket, 'chat:general');
+useSocketEvent(socket, 'message:created', message => { messages.value = [...messages.value.slice(-199), message]; });
+async function send() { await socket.send('message:send', { room: 'chat:general', text: text.value }); text.value = ''; }
+</script>
+<template>
+  <main>
+    <h1>VibeSocket</h1>
+    <p>Realtime, Native to Vibe.js</p>
+    <output data-testid="status">{{ status }}</output>
+    <ul aria-live="polite"><li v-for="message in messages" :key="message.id">{{ message.text }}</li></ul>
+    <form @submit.prevent="send"><label>Message <input v-model="text" /></label><button type="submit">Send message</button></form>
+  </main>
+</template>

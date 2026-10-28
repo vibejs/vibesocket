@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+.pnpm-store
+test-results
+playwright-report
+*.tsbuildinfo
+.data
+*.tgz
+.wrangler
