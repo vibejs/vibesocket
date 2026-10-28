@@ -9,10 +9,21 @@ const { id, title, column, index, move } = defineProps<{
   move: (id: string, column: 'todo' | 'progress' | 'done') => void;
 }>();
 const element = useTemplateRef<HTMLElement>('task');
-useSortable({ id: () => id, element, index: () => index, group: () => column });
+const { isDragging, isOver } = useSortable({
+  id: () => id,
+  element,
+  index: () => index,
+  group: () => column,
+});
 </script>
 <template>
-  <article ref="task" class="task" :data-task="id">
+  <article
+    ref="task"
+    class="task"
+    :data-task="id"
+    :data-dragging="isDragging ? 'true' : undefined"
+    :data-over="isOver ? 'true' : undefined"
+  >
     <span class="task-id">TASK / {{ id.slice(0, 8) }}</span>
     <h4>{{ title }}</h4>
     <div class="task-footer">

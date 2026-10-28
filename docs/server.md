@@ -30,10 +30,18 @@ const adapter = attachNodeSocket(http, realtime, {
   },
 });
 http.listen(3000);
-// On shutdown, stop producers first, then:
-await adapter.close();
-await new Promise<void>((resolve) => http.close(() => resolve()));
-await app.close();
+// Stop application producers before calling this shutdown function.
+async function shutdown() {
+  await adapter.close();
+  await new Promise<void>((resolve) => http.close(() => resolve()));
+  await app.close();
+}
+process.once('SIGTERM', () => {
+  void shutdown();
+});
+process.once('SIGINT', () => {
+  void shutdown();
+});
 ```
 
 Install `srvx` explicitly when using the bridge above. Do not call `app.listen` as well: the external server already owns HTTP. The stock `vibejs dev` HTTP middleware does not attach the socket listener; use the example bootstrap or attach the adapter to a publicly owned Vite HTTP server. No private server imports or listener monkey patches are used. A normal Response with status 101 is not a Node WebSocket upgrade.

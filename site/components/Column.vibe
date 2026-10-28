@@ -4,12 +4,17 @@ import { useDroppable } from '@usevibejs/dnd';
 const { column, count } = defineProps<{ column: string; count: number }>();
 defineSlots<{ default?: (props: {}) => unknown }>();
 const element = useTemplateRef<HTMLElement>('column');
-useDroppable({ id: () => `column:${column}`, element, group: () => column, index: () => count });
+const { isOver } = useDroppable({
+  id: () => `column:${column}`,
+  element,
+  group: () => column,
+  index: () => count,
+});
 </script>
 <template>
-  <section ref="column" class="column">
+  <section ref="column" class="column" :data-over="isOver ? 'true' : undefined">
     <h3>
-      <span class="column-dot" :class="column"></span
+      <span class="column-dot" :class="column" :data-over="isOver ? 'true' : undefined"></span
       >{{ column === 'todo' ? 'To do' : column === 'progress' ? 'In progress' : 'Done'
       }}<small>{{ count }}</small>
     </h3>

@@ -1588,3 +1588,13 @@ h2 {
     max-width: 100%;
   }
 }
+
+.task[data-dragging='true'] {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+.column[data-over='true'] {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+  border-radius: 4px;
+}

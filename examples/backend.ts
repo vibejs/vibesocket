@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { betterAuth } from 'better-auth';
+import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { getMigrations } from 'better-auth/db/migration';
 import { createAuthMiddleware } from '@usevibejs/auth/server';
 import { Module, VibeFactory, JsonLogger } from '@usevibejs/server';
@@ -32,17 +32,18 @@ export async function createDemoBackend(options: {
   simulate?: boolean;
 }) {
   const db = new DatabaseSync(options.database);
-  const auth = betterAuth({
+  const authOptions = {
     database: db,
     baseURL: options.baseURL,
     secret: options.secret,
     trustedOrigins: options.origins,
     emailAndPassword: { enabled: true, minPasswordLength: 12 },
     session: { cookieCache: { enabled: false } },
-    advanced: { useSecureCookies: false },
+    advanced: { useSecureCookies: false, ipAddress: { ipAddressHeaders: ['x-vibesocket-source'] } },
     rateLimit: { enabled: true, customRules: { '/sign-in/email': { window: 60, max: 100 } } },
-  });
-  await (await getMigrations(auth.options)).runMigrations();
+  } satisfies BetterAuthOptions;
+  await (await getMigrations(authOptions)).runMigrations();
+  const auth = betterAuth(authOptions);
   db.exec(
     'CREATE TABLE IF NOT EXISTS members (user_id TEXT PRIMARY KEY, org TEXT NOT NULL, role TEXT NOT NULL); CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, room TEXT NOT NULL, text TEXT NOT NULL, user TEXT NOT NULL, at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS boards (org TEXT PRIMARY KEY, revision INTEGER NOT NULL, tasks TEXT NOT NULL); CREATE TABLE IF NOT EXISTS stream_events (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL);',
   );
