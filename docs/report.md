@@ -84,7 +84,7 @@ pnpm verify exited 0. Vitest: **55 tests passed across 6 files**. Coverage inclu
 
 ## 17. Browser verification
 
-Playwright: **24 passed (8 Chromium, 8 Firefox, 8 WebKit)**. Independent contexts verify no-refresh chat delivery and persistence across reload, reconnect/rejoin/logout, shared Kanban changes, SSE metrics/pause/token cancellation/completion, tenant denial, localization/theme/search, multiple independent Vibe apps, scope release, pagehide/pageshow signals, offline retry and narrow-view layout. The page-transition signal fixture does not prove every browser's production bfcache eviction behavior or physical mobile sleep/wake behavior.
+Playwright: **27 passed (9 Chromium, 9 Firefox, 9 WebKit)**. Independent contexts verify no-refresh chat delivery and persistence across reload, reconnect/rejoin/logout, shared Kanban changes and actual pointer drag, SSE metrics/pause/token cancellation/completion, tenant denial, localization/theme/search, multiple independent Vibe apps, scope release, pagehide/pageshow signals, offline retry and narrow-view layout. The pointer-drag case also passed three consecutive repetitions in each browser (9 additional targeted runs), awaiting observable drag/drop state instead of arbitrary sleeps. Browser runs use fresh isolated SQLite/session stores and remove their temporary directories on graceful shutdown. The page-transition signal fixture does not prove every browser's production bfcache eviction behavior or physical mobile sleep/wake behavior.
 
 ## 18. Security and package verification
 
@@ -114,4 +114,11 @@ The chat history response is limited to 200 messages and 48KiB; older-history pa
 
 ## 21. Local commits
 
-The first verified vertical slice is 34dc53f. Implementation and report delivery commits are recorded in the final delivery message and local git log. All changes are local and carry no attribution trailers. No remote is configured.
+| Commit  | Verified milestone                                                                                      |
+| ------- | ------------------------------------------------------------------------------------------------------- |
+| 34dc53f | First two-browser typed WebSocket vertical slice                                                        |
+| 7f7193c | Resilient core, runtime adapters, security tests, ecosystem showcases and measured load scenarios       |
+| 3795105 | Worker frame-byte limit includes receipt framing; real workerd boundary regression                      |
+| 5ee1fc7 | Deterministic pointer collaboration, isolated browser databases and explicitly owned graceful bootstrap |
+
+The report-only delivery commit is identified in the final response and local git log. The benchmark JSON was recorded against the implementation represented by 7f7193c; subsequent changes cover Worker overflow and showcase/test lifecycle. All changes are local and carry no attribution trailers. No remote is configured.
