@@ -1,0 +1,11 @@
+{
+  "singleQuote": true,
+  "ignorePatterns": [
+    "dist/**",
+    "dist-site/**",
+    "reports/**",
+    ".wrangler/**",
+    "vendor/**",
+    "test-results/**"
+  ]
+}

@@ -1,0 +1,185 @@
+<script setup lang="ts">
+import { ref, computed, watch, onScopeDispose } from '@usevibejs/ui';
+import type { InferOutput } from 'valibot';
+import { useSocketRoom, useSocketEvent, useSocketStatus } from '../../src/client.ts';
+import { syncSocketQuery } from '../../src/adapters.ts';
+import { messageSchema } from '../../examples/contract.ts';
+import { socket, identity, query, i18n } from '../state.ts';
+import Button from './ui/Button.vibe';
+const currentIdentity = identity;
+const text = ref(''),
+  selected = ref('general'),
+  error = ref(''),
+  sending = ref(false);
+const room = computed(() => `chat:${identity.value?.org}:${selected.value}`);
+const messages = ref<InferOutput<typeof messageSchema>[]>([]);
+const users = ref<{ userId: string; connections: number; lastActivity: number }[]>([]),
+  typing = ref<string[]>([]);
+const unread = ref<Record<string, number>>({});
+const { active } = useSocketRoom(socket, room),
+  { connected } = useSocketStatus(socket);
+let revision = 0,
+  lastTyping = 0;
+async function history() {
+  const token = ++revision,
+    current = room.value;
+  try {
+    const history = await socket.request('history', { room: current });
+    if (token !== revision || room.value !== current) return;
+    // Merge live arrivals captured while the history request was in flight, then deduplicate by ID.
+    const merged = [
+      ...new Map([...history, ...messages.value].map((message) => [message.id, message])).values(),
+    ].slice(-200);
+    messages.value = merged;
+    query.setQueryData(['chat', identity.value?.id, current], merged);
+  } catch (failure) {
+    error.value = failure instanceof Error ? failure.message : 'History unavailable';
+  }
+}
+watch(
+  [room, active],
+  ([next, joined], [previous]) => {
+    if (next !== previous) {
+      revision++;
+      messages.value = [];
+      users.value = [];
+      typing.value = [];
+      error.value = '';
+      unread.value = { ...unread.value, [String(next)]: 0 };
+    }
+    if (joined) void history();
+  },
+  { immediate: true, flush: 'sync' },
+);
+const off = syncSocketQuery(
+  socket,
+  'message:created',
+  (message, metadata) => {
+    if (metadata.room !== room.value) {
+      unread.value = { ...unread.value, [message.room]: (unread.value[message.room] ?? 0) + 1 };
+      return;
+    }
+    if (messages.value.some((m) => m.id === message.id)) return;
+    messages.value = [...messages.value.slice(-199), message];
+    query.setQueryData(['chat', identity.value?.id, room.value], messages.value);
+  },
+  () => {
+    void history();
+  },
+);
+onScopeDispose(off);
+// Keep the second room subscribed for unread counts; this owns its own reference.
+const otherRoom = computed(
+  () => `chat:${identity.value?.org}:${selected.value === 'general' ? 'engineering' : 'general'}`,
+);
+useSocketRoom(socket, otherRoom);
+useSocketEvent(socket, 'presence:updated', (payload) => {
+  if (payload.room === room.value) users.value = payload.users;
+});
+useSocketEvent(socket, 'typing:updated', (payload) => {
+  if (payload.room === room.value)
+    typing.value = payload.users.filter((id) => id !== identity.value?.id);
+});
+function typingActivity() {
+  if (Date.now() - lastTyping < 1000) return;
+  lastTyping = Date.now();
+  void socket
+    .send('typing', { room: room.value, active: true }, { disconnected: 'drop' })
+    .catch(() => {});
+}
+async function send() {
+  if (!text.value.trim() || sending.value) return;
+  sending.value = true;
+  error.value = '';
+  try {
+    await socket.request('message:send', { room: room.value, text: text.value.trim() });
+    text.value = '';
+    void socket.send('typing', { room: room.value, active: false }, { disconnected: 'drop' });
+  } catch (failure) {
+    error.value =
+      failure instanceof Error ? failure.message : 'Message failed. Your draft is retained.';
+  } finally {
+    sending.value = false;
+  }
+}
+const timestamp = (at: string) => i18n.d(new Date(at), { hour: '2-digit', minute: '2-digit' });
+</script>
+<template>
+  <section class="chat-shell" aria-label="Realtime chat">
+    <aside class="rooms">
+      <p class="eyebrow">{{ currentIdentity?.org }} workspace</p>
+      <h3>Channels</h3>
+      <button
+        v-for="name in ['general', 'engineering']"
+        :key="name"
+        :class="{ selected: selected === name }"
+        @click="selected = name"
+      >
+        # {{ i18n.dynamic(name) }}
+        <span v-if="unread[`chat:${currentIdentity?.org}:${name}`]">{{
+          unread[`chat:${currentIdentity?.org}:${name}`]
+        }}</span>
+      </button>
+      <div class="room-note">
+        <span class="live-dot"></span> {{ users.length }} {{ i18n.dynamic('online') }}
+        <p>Private to your organization.</p>
+      </div>
+    </aside>
+    <div class="conversation">
+      <header class="panel-header">
+        <div>
+          <h3># {{ i18n.dynamic(selected) }}</h3>
+          <p>Good ideas travel in realtime.</p>
+        </div>
+        <span class="tiny-tag">WebSocket</span>
+      </header>
+      <div class="messages" role="log" aria-label="Messages" aria-live="polite">
+        <div v-if="!messages.length" class="empty-state">
+          <span class="empty-icon">↗</span>
+          <h3>Start something live.</h3>
+          <p>Open this room in another browser and send the first message.</p>
+        </div>
+        <article
+          v-for="message in messages"
+          :key="message.id"
+          class="message"
+          :class="{ mine: message.user === currentIdentity?.id }"
+        >
+          <div class="avatar">{{ message.user === currentIdentity?.id ? 'Y' : 'M' }}</div>
+          <div class="message-body">
+            <div class="message-meta">
+              <strong>{{
+                message.user === currentIdentity?.id ? 'You' : 'Workspace member'
+              }}</strong
+              ><time :datetime="message.at">{{ timestamp(message.at) }}</time>
+            </div>
+            <p>{{ message.text }}</p>
+            <small v-if="message.user === currentIdentity?.id">Processed · saved locally</small>
+          </div>
+        </article>
+      </div>
+      <p class="typing-line" aria-live="polite">
+        {{
+          typing.length
+            ? i18n.dynamic('typing')
+            : 'Messages are validated and persisted before acknowledgment.'
+        }}
+      </p>
+      <form class="composer" @submit.prevent="send">
+        <label class="sr-only" for="chat-message">Message</label
+        ><input
+          id="chat-message"
+          v-model="text"
+          @input="typingActivity"
+          placeholder="Write a message…"
+          maxlength="2000"
+        /><Button type="submit" :disabled="!active || !connected || sending || !text.trim()"
+          >{{ sending ? 'Sending…' : 'Send message' }} <span aria-hidden="true">↑</span></Button
+        >
+      </form>
+      <p v-if="error" class="error" role="alert">
+        {{ error }} Retry after checking the connection. Your draft is retained.
+      </p>
+    </div>
+  </section>
+</template>

@@ -1,0 +1,16 @@
+<script setup lang="ts">
+import { computed } from '@usevibejs/ui';
+import { inlineTokens } from '../docs.ts';
+const { text } = defineProps<{ text: string }>();
+const tokens = computed(() => inlineTokens(text));
+</script>
+<template>
+  <span
+    ><template v-for="(token, index) in tokens" :key="index"
+      ><code v-if="token.kind === 'code'">{{ token.text }}</code
+      ><strong v-else-if="token.kind === 'bold'">{{ token.text }}</strong
+      ><a v-else-if="token.kind === 'link'" :href="token.href" rel="noreferrer">{{ token.text }}</a
+      ><span v-else>{{ token.text }}</span></template
+    ></span
+  >
+</template>

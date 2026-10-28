@@ -1,0 +1,64 @@
+<script setup lang="ts">
+import { ref, onScopeDispose } from '@usevibejs/ui';
+import { createEventStream } from '../../src/sse.ts';
+import { streamEvents } from '../../examples/contract.ts';
+import Button from './ui/Button.vibe';
+const text = ref(''),
+  status = ref('Ready'),
+  events = ref<{ id: string; data: string }[]>([]);
+let stream: ReturnType<typeof createEventStream<typeof streamEvents>> | undefined;
+function cancel() {
+  stream?.dispose();
+  stream = undefined;
+  status.value = 'Cancelled';
+}
+function start() {
+  stream?.dispose();
+  text.value = '';
+  events.value = [];
+  status.value = 'Streaming';
+  stream = createEventStream({ url: '/api/ai', events: streamEvents, withCredentials: true });
+  stream.on('token', (token, id) => {
+    text.value += token;
+    events.value = [...events.value.slice(-49), { id, data: token }];
+  });
+  stream.on('done', () => {
+    stream?.dispose();
+    status.value = 'Complete';
+  });
+  stream.connect();
+}
+onScopeDispose(() => stream?.dispose());
+</script>
+<template>
+  <section class="streaming">
+    <header class="panel-header">
+      <div>
+        <h3>Words, as they arrive.</h3>
+        <p>A simulated response stream using named SSE events.</p>
+      </div>
+      <span class="tiny-tag">{{ status }}</span>
+    </header>
+    <div class="stream-output" aria-live="polite">
+      {{ text || 'Start the stream to watch tokens arrive over a real HTTP connection.'
+      }}<span v-if="status === 'Streaming'" class="caret">▍</span>
+    </div>
+    <div class="stream-actions">
+      <Button @click="start">Start stream</Button
+      ><Button variant="outline" :disabled="status !== 'Streaming'" @click="cancel"
+        >Cancel stream</Button
+      >
+    </div>
+    <div class="wire-events">
+      <div v-for="(event, index) in events" :key="index">
+        <span>{{ event.id.padStart(2, '0') }}</span
+        ><code>event: token</code>
+        <pre>data: {{ JSON.stringify(event.data) }}</pre>
+      </div>
+    </div>
+    <p class="footnote">
+      Cancellation closes EventSource and releases the server timer. This short stream is
+      intentionally not replayed.
+    </p>
+  </section>
+</template>

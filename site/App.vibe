@@ -1,20 +1,321 @@
 <script setup lang="ts">
-import { ref } from '@usevibejs/ui';
-import { useSocketEvent, useSocketRoom, useSocketStatus } from '../src/client.ts';
-import { socket } from './main.ts';
-const text = ref('');
-const messages = ref<{ id: string; text: string; user: string; at: string }[]>([]);
-const { status } = useSocketStatus(socket);
-useSocketRoom(socket, 'chat:general');
-useSocketEvent(socket, 'message:created', message => { messages.value = [...messages.value.slice(-199), message]; });
-async function send() { await socket.send('message:send', { room: 'chat:general', text: text.value }); text.value = ''; }
+import { computed, ref, watch } from '@usevibejs/ui';
+import { useSocketStatus } from '../src/client.ts';
+import { socket, identity, authError, diagnostics, login, logout, i18n } from './state.ts';
+import { blocks, documents } from './docs.ts';
+import Button from './components/ui/Button.vibe';
+import Badge from './components/ui/Badge.vibe';
+import Chat from './components/Chat.vibe';
+import Kanban from './components/Kanban.vibe';
+import Dashboard from './components/Dashboard.vibe';
+import Streaming from './components/Streaming.vibe';
+import DocInline from './components/DocInline.vibe';
+const session = identity,
+  loginError = authError,
+  connectionDiagnostics = diagnostics;
+const tab = ref('chat'),
+  section = ref('playground'),
+  search = ref(''),
+  docId = ref('getting-started'),
+  copied = ref(false);
+const dark = ref(localStorage.getItem('vibesocket-theme') === 'dark');
+watch(
+  dark,
+  (value) => {
+    document.documentElement.dataset.theme = value ? 'dark' : 'light';
+    localStorage.setItem('vibesocket-theme', value ? 'dark' : 'light');
+  },
+  { immediate: true },
+);
+const { state, status } = useSocketStatus(socket);
+const filtered = computed(() =>
+  documents.filter((doc) =>
+    `${doc.title} ${doc.content}`.toLowerCase().includes(search.value.toLowerCase()),
+  ),
+);
+const selectedDoc = computed(() => documents.find((doc) => doc.id === docId.value) ?? documents[0]);
+const content = computed(() => blocks(selectedDoc.value?.content ?? ''));
+const count = ref(0);
+socket.on('message:created', () => {
+  count.value++;
+});
+async function copy(text: string) {
+  await navigator.clipboard.writeText(text);
+  copied.value = true;
+  setTimeout(() => {
+    copied.value = false;
+  }, 1200);
+}
+const snippet = `const socket = createSocketClient({ contract, url })\napp.use(createSocketPlugin(socket))\n\n// Inside a .vibe component\nuseSocketEvent(socket, 'message:created', message => {\n  messages.value = [...messages.value, message]\n})`;
 </script>
 <template>
-  <main>
-    <h1>VibeSocket</h1>
-    <p>Realtime, Native to Vibe.js</p>
-    <output data-testid="status">{{ status }}</output>
-    <ul aria-live="polite"><li v-for="message in messages" :key="message.id">{{ message.text }}</li></ul>
-    <form @submit.prevent="send"><label>Message <input v-model="text" /></label><button type="submit">Send message</button></form>
-  </main>
+  <div class="app-shell">
+    <header class="topbar">
+      <a href="/" class="brand" aria-label="VibeSocket home"
+        ><span class="brand-mark">⌁</span><strong>VibeSocket<span class="brand-dot">.</span></strong
+        ><span class="version">v0.1</span></a
+      >
+      <nav aria-label="Main navigation">
+        <button :class="{ active: section === 'docs' }" @click="section = 'docs'">
+          Documentation</button
+        ><button :class="{ active: section === 'playground' }" @click="section = 'playground'">
+          Playground</button
+        ><a href="https://github.com/vibejs/vibesocket">GitHub ↗</a>
+      </nav>
+      <button class="theme-button" aria-label="Toggle color theme" @click="dark = !dark">
+        {{ dark ? '☀' : '◐' }}
+      </button>
+    </header>
+    <div class="page-layout">
+      <aside class="sidebar">
+        <div class="sidebar-caption">THE REALTIME TOOLKIT</div>
+        <button class="sidebar-home" @click="section = 'playground'">
+          ⌁ &nbsp; Overview <span>↗</span></button
+        ><label class="search"
+          ><span class="sr-only">Search documentation</span
+          ><input
+            v-model="search"
+            @input="section = 'docs'"
+            placeholder="Search documentation…"
+          /><kbd>⌕</kbd></label
+        >
+        <p class="nav-group">DOCUMENTATION</p>
+        <nav class="doc-nav" aria-label="Documentation">
+          <button
+            v-for="doc in filtered"
+            :key="doc.id"
+            :class="{ selected: section === 'docs' && docId === doc.id }"
+            @click="
+              docId = doc.id;
+              section = 'docs';
+            "
+          >
+            {{ doc.title }}
+          </button>
+        </nav>
+        <div class="sidebar-bottom">
+          <span class="live-dot"></span
+          ><span>Built for Vibe.js<br /><small>Native all the way down.</small></span>
+        </div>
+      </aside>
+      <main class="main-content">
+        <template v-if="section === 'playground'"
+          ><div class="breadcrumb">Vibe.js ecosystem <span>/</span> Realtime infrastructure</div>
+          <section class="intro">
+            <div>
+              <Badge variant="outline"
+                ><span class="live-dot"></span> Realtime, Native to Vibe.js</Badge
+              >
+              <h1>
+                Make every app<br />feel
+                <span class="live-word">live<span class="signal-line"></span></span>.
+              </h1>
+              <p>
+                Typed events. Shared rooms. Resilient connections.<br />The realtime layer that
+                feels like part of your framework.
+              </p>
+              <div class="intro-actions">
+                <Button
+                  @click="
+                    section = 'docs';
+                    docId = 'getting-started';
+                  "
+                  >Start building <span>→</span></Button
+                ><button class="install-command" @click="copy('pnpm add @usevibejs/socket')">
+                  <code>pnpm add @usevibejs/socket</code><span>{{ copied ? '✓' : '⧉' }}</span>
+                </button>
+              </div>
+            </div>
+            <div class="signal-card">
+              <div class="signal-card-header">
+                <span class="live-dot"></span><span>CONNECTION INSPECTOR</span
+                ><span class="tiny-tag">LIVE</span>
+              </div>
+              <div class="signal-route">
+                <span class="route-node">.vibe</span
+                ><span class="route-wire"><i></i><i></i><i></i></span
+                ><span class="route-node server-node">server</span>
+              </div>
+              <div class="signal-stats">
+                <div>
+                  <small>STATUS</small><strong data-testid="status">{{ status }}</strong>
+                </div>
+                <div><small>TRANSPORT</small><strong>WebSocket</strong></div>
+                <div>
+                  <small>ROUND TRIP</small
+                  ><strong>{{ state.latency === null ? '—' : state.latency + ' ms' }}</strong>
+                </div>
+                <div>
+                  <small>RETRY ATTEMPTS</small><strong>{{ state.attempts }}</strong>
+                </div>
+              </div>
+              <div class="signal-card-footer">
+                <span>JSON · protocol v1</span
+                ><span>{{ state.pending }} pending · {{ state.queueDepth }} queued</span>
+              </div>
+            </div>
+          </section>
+          <section class="workbench">
+            <div class="section-heading">
+              <div>
+                <span class="eyebrow">REAL CONNECTIONS. REAL APPLICATIONS.</span>
+                <h2>A little less boilerplate.<br />A lot more possibility.</h2>
+              </div>
+              <p>
+                Try the same session in two browser windows.<br />Every update travels through the
+                server.
+              </p>
+            </div>
+            <div class="workbench-top">
+              <nav class="demo-tabs" aria-label="Realtime examples">
+                <button
+                  v-for="item in ['chat', 'kanban', 'dashboard', 'streaming']"
+                  :key="item"
+                  :class="{ selected: tab === item }"
+                  @click="tab = item"
+                >
+                  {{
+                    item === 'chat'
+                      ? '↗ Chat'
+                      : item === 'kanban'
+                        ? '▤ Kanban'
+                        : item === 'dashboard'
+                          ? '⌁ Dashboard'
+                          : '≋ Streaming'
+                  }}
+                </button>
+              </nav>
+              <div class="workbench-session">
+                <button
+                  class="locale-button"
+                  @click="i18n.setLocale(i18n.locale.value === 'en' ? 'tr' : 'en')"
+                >
+                  {{ i18n.locale.value.toUpperCase() }}</button
+                ><template v-if="session"
+                  ><span>{{ session.org }}</span
+                  ><button class="text-button" @click="logout">Sign out</button></template
+                ><span v-else>Local development</span>
+              </div>
+            </div>
+            <div v-if="!session" class="sign-in">
+              <div class="empty-icon">↗</div>
+              <h3>Meet your other browser.</h3>
+              <p>
+                Choose a local demo session. Ada and Lin share a workspace.<br />Eve belongs to a
+                different organization.
+              </p>
+              <div>
+                <Button @click="login('Ada')">Connect as Ada</Button
+                ><Button variant="outline" @click="login('Lin')">Connect as Lin</Button
+                ><Button variant="outline" @click="login('Eve')">Connect as Eve</Button>
+              </div>
+              <p v-if="loginError" class="error" role="alert">{{ loginError }}</p>
+              <small>Cookie sessions powered by VibeAuth · data stays on this machine</small>
+            </div>
+            <template v-else
+              ><Chat v-if="tab === 'chat'" /><Kanban v-if="tab === 'kanban'" /><Dashboard
+                v-if="tab === 'dashboard'" /><Streaming v-if="tab === 'streaming'"
+            /></template>
+            <div class="workbench-footer">
+              <span><span class="live-dot"></span> {{ i18n.dynamic(status) }}</span
+              ><span>{{ count }} chat events received</span
+              ><button class="text-button" :disabled="!session" @click="socket.reconnect()">
+                Reconnect ↻</button
+              ><button class="text-button" :disabled="!session" @click="socket.disconnect()">
+                Disconnect
+              </button>
+            </div>
+          </section>
+          <section class="native-section">
+            <div>
+              <span class="eyebrow">SMALL API. CLEAR GUARANTEES.</span>
+              <h2>Less ceremony.<br />More connection.</h2>
+              <p>
+                Use the reactivity you already know. Keep your data, your authentication, and your
+                deployment.
+              </p>
+              <ul>
+                <li><span>✓</span> Standard Schema validation</li>
+                <li><span>✓</span> Automatic scope cleanup</li>
+                <li><span>✓</span> Bounded queues and backoff</li>
+                <li><span>✓</span> Explicit persistence and replay</li>
+              </ul>
+            </div>
+            <div class="code-window">
+              <div>
+                <span>app.vibe</span
+                ><button @click="copy(snippet)">{{ copied ? 'Copied' : 'Copy' }}</button>
+              </div>
+              <pre><code>{{ snippet }}</code></pre>
+            </div>
+          </section>
+          <details class="diagnostics">
+            <summary>Connection diagnostics</summary>
+            <p v-if="!connectionDiagnostics.length">
+              Retry diagnostics appear here after a connection interruption.
+            </p>
+            <pre v-for="(item, index) in connectionDiagnostics" :key="index">{{
+              JSON.stringify(item)
+            }}</pre>
+          </details></template
+        >
+        <article v-else class="documentation">
+          <div class="mobile-doc-nav">
+            <label for="mobile-doc">Documentation page</label
+            ><select id="mobile-doc" v-model="docId">
+              <option v-for="doc in documents" :key="doc.id" :value="doc.id">
+                {{ doc.title }}
+              </option></select
+            ><label for="mobile-search">Search documentation</label
+            ><input id="mobile-search" v-model="search" placeholder="Search topics…" /><button
+              v-for="doc in filtered"
+              :key="doc.id"
+              @click="docId = doc.id"
+            >
+              {{ doc.title }}
+            </button>
+          </div>
+          <div class="breadcrumb">Documentation <span>/</span> {{ selectedDoc?.title }}</div>
+          <template v-for="(block, index) in content" :key="index"
+            ><h1 v-if="block.kind === 'heading' && block.level === 1">{{ block.text }}</h1>
+            <h2 v-else-if="block.kind === 'heading'">{{ block.text }}</h2>
+            <div v-else-if="block.kind === 'code'" class="code-window">
+              <div>
+                <span>TypeScript</span
+                ><button @click="copy(block.text)">{{ copied ? 'Copied' : 'Copy' }}</button>
+              </div>
+              <pre><code>{{ block.text }}</code></pre>
+            </div>
+            <div v-else-if="block.kind === 'table'" class="doc-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th v-for="(cell, index) in block.rows[0]" :key="index">
+                      <DocInline :text="cell" />
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, index) in block.rows.slice(1)" :key="index">
+                    <td v-for="(cell, index) in row" :key="index"><DocInline :text="cell" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <ol v-else-if="block.kind === 'list' && block.ordered">
+              <li v-for="(item, index) in block.items" :key="index"><DocInline :text="item" /></li>
+            </ol>
+            <ul v-else-if="block.kind === 'list'">
+              <li v-for="(item, index) in block.items" :key="index"><DocInline :text="item" /></li>
+            </ul>
+            <p v-else><DocInline :text="block.text" /></p
+          ></template>
+        </article>
+        <footer class="page-footer">
+          <span class="brand"><span class="brand-mark">⌁</span><strong>VibeSocket.</strong></span
+          ><span>Realtime, Native to Vibe.js</span><span>MIT licensed · Built in the open</span>
+        </footer>
+      </main>
+    </div>
+  </div>
 </template>

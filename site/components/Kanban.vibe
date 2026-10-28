@@ -1,0 +1,137 @@
+<script setup lang="ts">
+import { ref, watch, onScopeDispose } from '@usevibejs/ui';
+import { createDndManager, useDnd } from '@usevibejs/dnd';
+import { useSocketRoom, useSocketEvent } from '../../src/client.ts';
+import { socket, identity } from '../state.ts';
+import Task from './Task.vibe';
+import Column from './Column.vibe';
+import Button from './ui/Button.vibe';
+const board = ref<{
+  revision: number;
+  tasks: { id: string; title: string; column: 'todo' | 'progress' | 'done' }[];
+}>({ revision: 0, tasks: [] });
+const error = ref(''),
+  pending = ref(false),
+  title = ref('');
+const members = ref<string[]>([]);
+useSocketEvent(socket, 'presence:updated', (payload) => {
+  if (payload.room === `board:${identity.value?.org}`)
+    members.value = payload.users.map((user) => user.userId);
+});
+const columns = ['todo', 'progress', 'done'] as const;
+const { active } = useSocketRoom(socket, () => `board:${identity.value?.org}`);
+async function refresh() {
+  try {
+    board.value = await socket.request('board', null);
+  } catch {
+    error.value = 'Board unavailable. Reconnect to restore the latest state.';
+  }
+}
+watch(
+  active,
+  (joined) => {
+    if (joined) void refresh();
+  },
+  { immediate: true },
+);
+useSocketEvent(socket, 'board:updated', (next) => {
+  if (next.revision > board.value.revision) board.value = next;
+});
+async function move(id: string, column: 'todo' | 'progress' | 'done', index = 100) {
+  if (pending.value) return;
+  const expectedRevision = board.value.revision;
+  pending.value = true;
+  error.value = '';
+  board.value = {
+    ...board.value,
+    tasks: board.value.tasks.map((task) => (task.id === id ? { ...task, column } : task)),
+  };
+  try {
+    const next = await socket.request('task:move', { id, column, index, expectedRevision });
+    if (next.revision >= board.value.revision) board.value = next;
+  } catch {
+    error.value = 'The board changed while you were moving a task. Restored the server version.';
+    await refresh();
+  } finally {
+    pending.value = false;
+  }
+}
+const dnd = createDndManager({
+  monitor: {
+    onDragEnd(event) {
+      const { source, target } = event.operation;
+      if (
+        !event.canceled &&
+        event.accepted &&
+        source &&
+        target &&
+        columns.includes(target.group as (typeof columns)[number])
+      )
+        void move(String(source.id), target.group as (typeof columns)[number], target.index ?? 100);
+    },
+  },
+});
+useDnd(dnd);
+onScopeDispose(() => dnd.dispose());
+async function add() {
+  try {
+    const next = await socket.request('task:create', {
+      title: title.value,
+      expectedRevision: board.value.revision,
+    });
+    board.value = next;
+    title.value = '';
+  } catch {
+    error.value = 'Only workspace administrators can create tasks. Refresh after a conflict.';
+    await refresh();
+  }
+}
+</script>
+<template>
+  <section class="kanban">
+    <header class="panel-header">
+      <div>
+        <h3>Launch the realtime layer</h3>
+        <p>Server-authoritative ordering · revision {{ board.revision }}</p>
+      </div>
+      <div class="presence-group" aria-label="Connected board members">
+        <span v-for="member in members" :key="member" class="avatar small" :title="member">{{
+          member.slice(0, 2).toUpperCase()
+        }}</span>
+      </div>
+      <span class="tiny-tag">{{ pending ? 'Reconciling' : 'Synced' }}</span>
+    </header>
+    <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <div class="board">
+      <Column
+        v-for="column in columns"
+        :key="column"
+        :column="column"
+        :count="board.tasks.filter((t) => t.column === column).length"
+      >
+        <Task
+          v-for="(task, index) in board.tasks.filter((t) => t.column === column)"
+          :key="task.id"
+          :id="task.id"
+          :title="task.title"
+          :column="column"
+          :index="index"
+          :move="move"
+        />
+      </Column>
+    </div>
+    <form class="task-form" @submit.prevent="add">
+      <label class="sr-only" for="task-title">New task</label
+      ><input
+        id="task-title"
+        v-model="title"
+        placeholder="What needs to happen?"
+        maxlength="200"
+      /><Button type="submit" :disabled="!active || !title.trim()">Create task</Button>
+    </form>
+    <p class="footnote">
+      Drag a task or use “Move” with your keyboard. Accepted operations are committed to SQLite
+      before publication.
+    </p>
+  </section>
+</template>

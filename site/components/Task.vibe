@@ -1,0 +1,29 @@
+<script setup lang="ts">
+import { useTemplateRef } from '@usevibejs/ui';
+import { useSortable } from '@usevibejs/dnd';
+const { id, title, column, index, move } = defineProps<{
+  id: string;
+  title: string;
+  column: string;
+  index: number;
+  move: (id: string, column: 'todo' | 'progress' | 'done') => void;
+}>();
+const element = useTemplateRef<HTMLElement>('task');
+useSortable({ id: () => id, element, index: () => index, group: () => column });
+</script>
+<template>
+  <article ref="task" class="task" :data-task="id">
+    <span class="task-id">TASK / {{ id.slice(0, 8) }}</span>
+    <h4>{{ title }}</h4>
+    <div class="task-footer">
+      <span class="avatar small">O</span
+      ><button
+        class="text-button"
+        aria-label="Move task forward"
+        @click="move(id, column === 'todo' ? 'progress' : column === 'progress' ? 'done' : 'todo')"
+      >
+        Move →
+      </button>
+    </div>
+  </article>
+</template>

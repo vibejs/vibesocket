@@ -1,0 +1,119 @@
+{
+  "recordedAt": "2026-10-28T07:07:35.798Z",
+  "runtime": "v24.22.1",
+  "hardware": {
+    "cpu": "Apple M4",
+    "cores": 10,
+    "memoryGiB": 24,
+    "os": "darwin 25.6.0 arm64"
+  },
+  "configuration": {
+    "transport": "ws 8.22.0",
+    "sameProcessClientAndServer": true,
+    "tls": false,
+    "loopbackOnly": true,
+    "descriptorLimit": 16384,
+    "compression": false,
+    "persistence": false,
+    "payload": "timestamp number RPC; 8KiB slow-consumer event"
+  },
+  "scenarios": [
+    {
+      "connections": 100,
+      "successfulConnections": 100,
+      "connectMs": 28.11,
+      "rpcRequests": 1000,
+      "offeredRPCPerSecond": "burst",
+      "elapsedMs": 22.38,
+      "completedRPCPerSecond": 44675,
+      "latencyMs": {
+        "p50": 18.682,
+        "p95": 21.343,
+        "p99": 21.608
+      },
+      "cpuUserMs": 28.977,
+      "cpuSystemMs": 7.811,
+      "peakRSSMiB": 122.67,
+      "initialRSSMiB": 97.83,
+      "maxObservedBufferedBytes": 0,
+      "broadcast": {
+        "attempted": 100,
+        "written": 100,
+        "rejected": 0,
+        "clientP95Ms": 1.03
+      },
+      "churnCommands": 1000,
+      "errors": 0
+    },
+    {
+      "connections": 1000,
+      "successfulConnections": 1000,
+      "connectMs": 106.14,
+      "rpcRequests": 10000,
+      "offeredRPCPerSecond": 10000,
+      "elapsedMs": 1084.22,
+      "completedRPCPerSecond": 9223,
+      "latencyMs": {
+        "p50": 23.315,
+        "p95": 33.078,
+        "p99": 35.775
+      },
+      "cpuUserMs": 314.284,
+      "cpuSystemMs": 105.155,
+      "peakRSSMiB": 190.05,
+      "initialRSSMiB": 124.06,
+      "maxObservedBufferedBytes": 0,
+      "broadcast": {
+        "attempted": 1000,
+        "written": 1000,
+        "rejected": 0,
+        "clientP95Ms": 15.469
+      },
+      "churnCommands": 1000,
+      "errors": 0
+    },
+    {
+      "connections": 5000,
+      "successfulConnections": 5000,
+      "connectMs": 429.32,
+      "rpcRequests": 10000,
+      "offeredRPCPerSecond": "burst",
+      "elapsedMs": 148.85,
+      "completedRPCPerSecond": 67183,
+      "latencyMs": {
+        "p50": 131.494,
+        "p95": 133.046,
+        "p99": 133.084
+      },
+      "cpuUserMs": 122.57,
+      "cpuSystemMs": 44.003,
+      "peakRSSMiB": 310.22,
+      "initialRSSMiB": 191.98,
+      "maxObservedBufferedBytes": 0,
+      "broadcast": {
+        "attempted": 5000,
+        "written": 5000,
+        "rejected": 0,
+        "clientP95Ms": 35.481
+      },
+      "churnCommands": 1000,
+      "errors": 0
+    }
+  ],
+  "reconnectStorm": {
+    "connections": 100,
+    "attempts": 100,
+    "elapsedMs": 205.27133300000014,
+    "minScheduledDelayMs": 101.1669169388993,
+    "maxScheduledDelayMs": 199.74151525153434,
+    "activeAfter": 100
+  },
+  "slowConsumer": {
+    "sentFramesBeforeRejection": 135,
+    "closedOnBufferOverflow": true,
+    "configuredBufferLimitBytes": 262144
+  },
+  "cleanup": {
+    "activeBeforeShutdown": 0
+  }
+}

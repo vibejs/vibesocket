@@ -1,3 +1,6 @@
 minimumReleaseAgeExclude:
   - oxlint@1.90.0
   - tsdown@0.23.3
+
+allowBuilds:
+  workerd: true

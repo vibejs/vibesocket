@@ -1,5 +1,6 @@
 node_modules
 dist
+dist-site
 coverage
 .pnpm-store
 test-results
@@ -8,3 +9,5 @@ playwright-report
 .data
 *.tgz
 .wrangler
+
+!vendor/*.tgz

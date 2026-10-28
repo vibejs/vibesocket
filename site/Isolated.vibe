@@ -1,0 +1,10 @@
+<script setup lang="ts">
+import { useSocket, useSocketRoom, useSocketStatus } from '../src/client.ts';
+import { demoContract } from '../examples/contract.ts';
+const client = useSocket(demoContract);
+const { status } = useSocketStatus(client);
+useSocketRoom(client, 'chat:orbit:general');
+</script>
+<template>
+  <output class="isolated-status">{{ status }}</output>
+</template>

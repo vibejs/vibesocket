@@ -1,0 +1,120 @@
+<script setup lang="ts">
+import { computed, ref, useTemplateRef } from '@usevibejs/ui';
+import { useVirtualizer } from '@usevibejs/virtual';
+import { useEventStream } from '../../src/client.ts';
+import { streamEvents } from '../../examples/contract.ts';
+import Button from './ui/Button.vibe';
+const { stream, state } = useEventStream({
+  url: '/api/events',
+  events: { metric: streamEvents.metric },
+  withCredentials: true,
+});
+const samples = ref<{ tick: number; requests: number; latency: number; cpu: number; at: string }[]>(
+    [],
+  ),
+  paused = ref(false),
+  missed = ref(0);
+const scroll = useTemplateRef<HTMLElement>('feed');
+stream.on('metric', (sample) => {
+  if (paused.value) {
+    missed.value++;
+    return;
+  }
+  samples.value = [sample, ...samples.value].slice(0, 500);
+});
+const latest = computed(() => samples.value[0]);
+const chart = computed(() =>
+  samples.value
+    .slice(0, 40)
+    .reverse()
+    .map((sample, i) => `${i * 12},${120 - sample.latency * 2}`)
+    .join(' '),
+);
+const virtual = useVirtualizer(() => ({
+  count: samples.value.length,
+  getScrollElement: () => scroll.value,
+  estimateSize: () => 40,
+  overscan: 5,
+}));
+const rows = virtual.virtualItems,
+  total = virtual.totalSize;
+function pause() {
+  paused.value = !paused.value;
+  if (!paused.value) missed.value = 0;
+}
+</script>
+<template>
+  <section class="dashboard">
+    <header class="panel-header">
+      <div>
+        <h3>Service pulse</h3>
+        <p>One-way metrics over Server-Sent Events.</p>
+      </div>
+      <Button variant="outline" @click="pause">{{
+        paused ? 'Resume updates' : 'Pause updates'
+      }}</Button>
+    </header>
+    <div class="metric-grid">
+      <div>
+        <span>Requests / min</span><strong>{{ latest?.requests.toLocaleString() ?? '—' }}</strong
+        ><small>Deterministic local simulation</small>
+      </div>
+      <div>
+        <span>Response latency</span><strong>{{ latest?.latency ?? '—' }}<em> ms</em></strong
+        ><small>Latest sampled value</small>
+      </div>
+      <div>
+        <span>CPU utilization</span><strong>{{ latest?.cpu ?? '—' }}<em>%</em></strong
+        ><small>Event ID {{ state.lastEventId || '—' }}</small>
+      </div>
+    </div>
+    <div class="chart">
+      <div class="chart-label">
+        <span>Response latency</span><span class="tiny-tag">{{ state.status }} / SSE</span>
+      </div>
+      <svg
+        viewBox="0 0 480 140"
+        role="img"
+        aria-label="Live latency history"
+        preserveAspectRatio="none"
+      >
+        <path d="M0 30H480M0 70H480M0 110H480" class="grid-lines" />
+        <polyline :points="chart" fill="none" stroke="currentColor" stroke-width="3" />
+      </svg>
+    </div>
+    <div class="feed-header">
+      <h3>Activity feed</h3>
+      <span>500-event retention · VibeVirtual</span>
+    </div>
+    <div ref="feed" class="metric-feed">
+      <div :style="{ height: `${total}px`, position: 'relative' }">
+        <div
+          v-for="row in rows"
+          :key="String(row.key)"
+          class="metric-row"
+          :style="{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            transform: `translateY(${row.start}px)`,
+          }"
+        >
+          <span class="live-dot"></span><code>metric:sample</code
+          ><span>{{ samples[row.index]?.requests }} requests</span
+          ><time>{{ samples[row.index]?.at.slice(11, 19) }}</time>
+        </div>
+      </div>
+    </div>
+    <p v-if="latest && latest.cpu >= 60" class="notice" role="status">
+      Live notification: simulated CPU utilization is above 60%.
+    </p>
+    <p v-if="paused" class="notice">
+      Updates paused. {{ missed }} samples skipped. The connection remains healthy.
+    </p>
+    <p v-if="state.error" class="notice">
+      {{ state.error.code }}. Reconnect may require a fresh snapshot if retained history has
+      expired.
+    </p>
+  </section>
+</template>
