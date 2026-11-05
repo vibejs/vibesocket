@@ -64,7 +64,8 @@
     "site:build": "vite build --config site/vite.config.ts",
     "verify": "pnpm build && pnpm check && pnpm site:build && pnpm test:browser && pnpm pack-check",
     "pack-check": "node scripts/pack-check.ts",
-    "bench": "ulimit -n 16384 && node scripts/bench.ts"
+    "bench": "ulimit -n 16384 && node scripts/bench.ts",
+    "version-packages": "changeset version && pnpm install --lockfile-only"
   },
   "dependencies": {
     "@standard-schema/spec": "1.1.0"
