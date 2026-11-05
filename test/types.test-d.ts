@@ -1,6 +1,7 @@
 import * as v from 'valibot';
+import { QueryClient } from '@usevibejs/query';
 import { defineSocketContract } from '../src/contract.ts';
-import { createSocketClient } from '../src/index.ts';
+import { bindQuery, createSocketClient } from '../src/index.ts';
 import { createSocketServer } from '../src/server.ts';
 const contract = defineSocketContract({
   client: { send: v.object({ text: v.string() }) },
@@ -34,6 +35,7 @@ server.handle('sum', () => 'wrong');
 server.handle('sum', (_values, context) => context.fail('INVENTED'));
 // @ts-expect-error wrong direction
 void server.publish('room', 'send', { text: 'wrong' });
+bindQuery(client, new QueryClient(), { received: ['inbox'], sum: [['inbox'], ['unread']] });
 void client.requestResult('sum', [1]).then((result) => {
   if (!result.ok) {
     const code: import('../src/errors.ts').ErrorCode | 'CONFLICT' = result.error.code;

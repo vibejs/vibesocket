@@ -48,6 +48,8 @@ const latest = useSocketEvent(socket, 'message:created');
 
 The Node adapter uses an externally owned HTTP server and `ws`'s real upgrade handler. **Ordinary Vibe.js Fetch middleware cannot handle Node upgrades.** See [Node integration](docs/server.md). SSE does run through Fetch middleware and is tested through the actual Vibe.js HTTP pipeline.
 
+`bindQuery(socket, queryClient, events)` from `@usevibejs/socket/query` invalidates `@usevibejs/query` keys when those events arrive. The query package is an optional peer. The socket still runs when it is not installed.
+
 Events are best effort. RPC resolves after handler completion and response validation; durable success depends on what the handler commits. Reconnection restores subscriptions, not missed business data. [Delivery guarantees](docs/delivery.md) explain the boundaries.
 
 Run the local workbench:

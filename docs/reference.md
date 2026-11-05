@@ -4,7 +4,7 @@
 
 | Subpath           | Main public exports                                                                                                                                        | Runtime dependency boundary                 |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| @usevibejs/socket | createSocketClient, defineSocketContract, SocketError, errorCodes, retryDelay, connectionTransitions                                                       | Browser-safe, no UI dependency              |
+| @usevibejs/socket | createSocketClient, defineSocketContract, SocketError, errorCodes, retryDelay, connectionTransitions, bindQuery                                            | Browser-safe, no UI or query dependency     |
 | /contract         | defineSocketContract, validate, lookup, schema/contract/inference types                                                                                    | Standard Schema interfaces only             |
 | /client           | createSocketClient, createSocketPlugin, useSocket, useSocketStatus, useSocketEvent, useSocketRoom, useSocketSubscription, useSocketRequest, useEventStream | Public @usevibejs/ui peer                   |
 | /server           | createSocketServer; Principal, Connection, ServerTransport, HandlerContext, ServerOptions                                                                  | Runtime independent                         |
@@ -12,6 +12,7 @@
 | /cloudflare       | createDurableSocket, CloudflareOptions, HibernationState, WorkerSocket                                                                                     | Worker globals accessed only on invocation  |
 | /sse              | formatSSE, createSSEStream, createSSEChannel, createEventStream, replay/event types                                                                        | Fetch, streams, optional native EventSource |
 | /adapters         | createSessionAuthenticator, syncSocketQuery, presenceSnapshot, createTypingTracker, createMemoryPubSub, connectPubSub, recoverState                        | Structural optional ecosystem integrations  |
+| /query            | bindQuery, QueryInvalidator, QuerySocket                                                                                                                   | No runtime import of @usevibejs/query       |
 
 Generated declarations are the exact signature reference. All packages are ESM, side-effect free and independently importable. The Node adapter owns no HTTP listener. The core owns no reactive runtime or database.
 
