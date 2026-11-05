@@ -6,6 +6,8 @@
 
 Operations: `connect`, `disconnect`, `reconnect`, `dispose`, `send`, `request`, `on`, `observe`, `subscribe`, `observeSubscriptions`, `cancelQueued`, `clearQueue`. `on` and observers return unsubscribe callbacks. Multiple listeners are isolated: a throwing callback does not stop other listeners. Async callbacks own their rejected promises; prefer catching errors in application callbacks.
 
+`bindQuery(socket, queryClient, events)` from `@usevibejs/socket` or `@usevibejs/socket/query` subscribes to the named events and calls `invalidateQueries({ queryKey })` for each mapped key. It is optional. Installing the socket without `@usevibejs/query` still loads the client. The bridge accepts any object with `invalidateQueries`; it does not construct a cache.
+
 ## Connection state
 
 The deterministic lifecycle is idle → connecting → connected. Retryable loss enters reconnecting; exhaustion or terminal close enters failed. Intentional disconnect enters disconnected. Dispose enters closed and cannot reopen. Manual reconnect passes through disconnected, resets attempts and starts connecting. No independent connected boolean is maintained by the transport.

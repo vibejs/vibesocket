@@ -682,3 +682,4 @@ export function createSocketClient<C extends SocketContract>(options: ClientOpti
   return api;
 }
 export type SocketClient<C extends SocketContract> = ReturnType<typeof createSocketClient<C>>;
+export { bindQuery, type QueryInvalidator, type QuerySocket } from './query.ts';

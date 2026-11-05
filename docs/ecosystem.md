@@ -12,7 +12,20 @@ The browser uses `createVibeAuthClient().client.signIn.email` and signOut. HTTP 
 
 `syncSocketQuery(client, event, apply, resynchronize)` returns cleanup. It observes connection **transitions**, not every state notification. It runs resynchronization on re-entry after a previous connection and catches that callback's asynchronous failure. The application should expose a resynchronization error state when recovery fails.
 
-Chat uses the real VibeQuery QueryClient.setQueryData. Cache keys include the trusted user's ID and room. It merges history and concurrent events by persisted message IDs, retains 200 visible messages (history responses also have a 48KiB JSON budget), and clears caches on identity change. For ordinary server state, call QueryClient.invalidateQueries from the event handler instead. The socket adapter owns no second query cache. Revision/cursor rules belong to your application; do not blindly append out-of-order mutation events.
+Chat uses the real VibeQuery QueryClient.setQueryData. Cache keys include the trusted user's ID and room. It merges history and concurrent events by persisted message IDs, retains 200 visible messages (history responses also have a 48KiB JSON budget), and clears caches on identity change. For ordinary server state, `bindQuery` from `@usevibejs/socket/query` invalidates query keys when named events arrive. The socket package lists `@usevibejs/query` as an optional peer and does not import it; a socket works with no query package installed. The socket adapter owns no second query cache. Revision/cursor rules belong to your application; do not blindly append out-of-order mutation events.
+
+```ts
+import { bindQuery } from '@usevibejs/socket/query';
+import { QueryClient } from '@usevibejs/query';
+
+const queryClient = new QueryClient();
+const stop = bindQuery(socket, queryClient, {
+  'task:updated': ['tasks'],
+  'task:deleted': [['tasks'], ['board']],
+});
+```
+
+A value whose entries are all arrays invalidates each of those keys. Any other array is one query key. Empty keys are ignored. `stop()` removes the listeners. Pass the same `QueryClient` the application installed with VibeQuery.
 
 ## VibeDND
 

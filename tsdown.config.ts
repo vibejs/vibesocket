@@ -9,6 +9,7 @@ export default defineConfig({
     'src/sse.ts',
     'src/adapters.ts',
     'src/cloudflare.ts',
+    'src/query.ts',
   ],
   tsconfig: 'tsconfig.build.json',
   platform: 'neutral',

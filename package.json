@@ -46,6 +46,10 @@
     "./cloudflare": {
       "types": "./dist/cloudflare.d.ts",
       "default": "./dist/cloudflare.js"
+    },
+    "./query": {
+      "types": "./dist/query.d.ts",
+      "default": "./dist/query.js"
     }
   },
   "scripts": {
@@ -94,9 +98,13 @@
     "vitest": "5.0.5"
   },
   "peerDependencies": {
+    "@usevibejs/query": "^0.1.0",
     "@usevibejs/ui": "^0.1.0"
   },
   "peerDependenciesMeta": {
+    "@usevibejs/query": {
+      "optional": true
+    },
     "@usevibejs/ui": {
       "optional": true
     }
